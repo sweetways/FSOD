@@ -1,13 +1,23 @@
 _BASE_: "faster_rcnn_R_101_FPN_ETF_pre3_10shot.yaml"
+
+
 MODEL:
+  META_ARCHITECTURE: "ContrastiveGeneralizedRCNN"  # 使用我们新定义的对比学习架构
+  TEACHER_WEIGHT: "/root/autodl-tmp/checkpoints/voc/prior/ETFRes_pre3_10shot_lr20_adj7.0_rfs1.0_t1/model_final.pth"
   BACKBONE:
-    FREEZE: True
+    FREEZE_AT: 3
   PROPOSAL_GENERATOR:
     FREEZE: True
   ROI_HEADS:
     NAME: "DistillMarginROIHeads"
+  USE_CONTRASTIVE: True  # 启用对比学习
+  CONTRASTIVE_WEIGHT: 0.003  # 对比损失的权重
+  IS_DISTILL: True
 LOSS:
   ADJUST_STAGE: 'distill'
 SOLVER:
-  BASE_LR: 0.01
-OUTPUT_DIR: "checkpoints/voc/distill/t1"
+  BASE_LR: 1e-3
+# Using 0.04 is slightly better than 0.02
+OUTPUT_DIR: "/root/autodl-tmp/checkpoints/voc/distill/t2"
+TRAIN:
+  CACHE_UPDATE_INTERVAL: 1000

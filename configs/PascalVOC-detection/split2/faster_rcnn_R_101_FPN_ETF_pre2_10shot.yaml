@@ -29,5 +29,5 @@ SOLVER:
 TEST:
   EVAL_PERIOD: 3000
 RESETOUT: True
-OUTPUT_DIR: "checkpoints/voc/prior/t1"
+OUTPUT_DIR: "/root/autodl-tmp/checkpoints/voc/prior/t1"
 # ADJUST_BACK: 1k is very high, comparing with 7k (outlier), remember to check back

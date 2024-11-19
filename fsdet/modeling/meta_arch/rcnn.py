@@ -64,7 +64,29 @@ class GeneralizedRCNN(nn.Module):
             for p in self.roi_heads.box_head.parameters():
                 p.requires_grad = False
             print("froze roi_box_head parameters")
+            # 检查FREEZE_AT的值是否合法
+        freeze_at = cfg.MODEL.BACKBONE.FREEZE_AT
 
+        # 如果backbone包含bottom_up，通常用于FPN的情况
+        if hasattr(self.backbone, 'bottom_up'):
+            # 获取 bottom_up 的所有子模块，确保可以按层进行冻结
+            layers = list(self.backbone.bottom_up.children())
+            
+            # 检查FREEZE_AT不超过bottom_up的总层数
+            if freeze_at > 0 and freeze_at <= len(layers):
+                # 冻结指定数量的层
+                for i in range(freeze_at):
+                    for p in layers[i].parameters():
+                        p.requires_grad = False
+                print(f"Frozen backbone bottom_up layers up to layer {freeze_at}")
+            else:
+                print("Invalid value for FREEZE_AT, skipping freezing operation.")
+        else:
+            # 如果没有bottom_up，尝试冻结整个backbone
+            if freeze_at > 0:
+                for p in self.backbone.parameters():
+                    p.requires_grad = False
+                print(f"Frozen entire backbone since 'bottom_up' attribute is not present.")
     def forward(self, batched_inputs):
         """
         Args:

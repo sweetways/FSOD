@@ -8,7 +8,6 @@ The registered object will be called with `obj(cfg)`
 and expected to return a `nn.Module` object.
 """
 
-
 def build_model(cfg):
     """
     Built the whole model, defined by `cfg.MODEL.META_ARCHITECTURE`.

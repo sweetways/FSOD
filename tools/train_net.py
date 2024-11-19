@@ -79,6 +79,13 @@ def setup_new_config(cfg):
     cfg.LOSS.ADJUST_MODE = 'multiply'
     cfg.LOSS.ADJUST_STAGE = 'fixed'
     cfg.RESETOUT = False
+
+    cfg.MODEL.TEACHER_WEIGHT = ''
+    cfg.MODEL.USE_CONTRASTIVE = True  # 启用对比学习
+    cfg.MODEL.CONTRASTIVE_WEIGHT = 0.1  # 对比损失的权重
+    cfg.MODEL.IS_DISTILL = True
+    cfg.TRAIN = get_cfg()
+    cfg.TRAIN.CACHE_UPDATE_INTERVAL = 1000  # 更新教师特征缓存的步长
     return cfg
 
 def setup(args):
@@ -101,7 +108,7 @@ def setup(args):
             bk_ratio = cfg.LOSS.ADJUST_BACK/1000.0
             rfs = cfg.DATALOADER.REPEAT_THRESHOLD * 100 if cfg.DATALOADER.SAMPLER_TRAIN == 'RepeatFactorTrainingSampler' else 0
             if cfg.LOSS.ADJUST_STAGE == 'distill':
-                assert cfg.MODEL.BACKBONE.FREEZE 
+                
                 print('Logging modification for finetuning')
                 loss_suffix = dir_comp[-1]
                 new_out_dir = '{}_distill{}_{}_lr{}_{}'.format(
@@ -109,7 +116,7 @@ def setup(args):
                 )
                 new_out_dir = '/'.join(dir_comp[:3]+[new_out_dir])
                 dir_comp = cfg.OUTPUT_DIR.split('/')
-                load_path = 'checkpoints/voc/prior/ETFRes_pre{}_{}_lr20_adj{}_rfs{}_t1/model_clean_student.pth'.format(
+                load_path = '/root/autodl-tmp/checkpoints/voc/prior/ETFRes_pre{}_{}_lr20_adj{}_rfs{}_t1/model_clean_student.pth'.format(
                     the_split, shot, cfg.LOSS.ADJUST_BACK/1000.0, 5.0 if '2' in shot else 1.0,
                 )
             else:
@@ -170,6 +177,7 @@ def main(args):
     If you'd like to do anything fancier than the standard training logic,
     consider writing your own training loop or subclassing the trainer.
     """
+    print(cfg.MODEL.WEIGHTS)
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()

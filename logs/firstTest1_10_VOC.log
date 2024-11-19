@@ -1,0 +1,160 @@
+nohup: ignoring input
+Command Line Args: Namespace(config_file='configs/PascalVOC-detection/split1/faster_rcnn_R_101_FPN_ETF_distill1_10shot.yaml', dist_url='tcp://127.0.0.1:49152', end_iter=-1, eval_all=False, eval_during_train=False, eval_iter=-1, eval_only=True, machine_rank=0, num_gpus=1, num_machines=1, opts=None, resume=False, start_iter=-1)
+Logging modification for finetuning
+[11/13 18:41:21 detectron2]: Rank of current process: 0. World size: 1
+[11/13 18:41:21 detectron2]: Command line arguments: Namespace(config_file='configs/PascalVOC-detection/split1/faster_rcnn_R_101_FPN_ETF_distill1_10shot.yaml', dist_url='tcp://127.0.0.1:49152', end_iter=-1, eval_all=False, eval_during_train=False, eval_iter=-1, eval_only=True, machine_rank=0, num_gpus=1, num_machines=1, opts=None, resume=False, start_iter=-1)
+[11/13 18:41:21 detectron2]: Contents of args.config_file=configs/PascalVOC-detection/split1/faster_rcnn_R_101_FPN_ETF_distill1_10shot.yaml:
+_BASE_: "faster_rcnn_R_101_FPN_ETF_pre1_10shot.yaml"
+MODEL:
+  BACKBONE:
+    FREEZE: True
+  PROPOSAL_GENERATOR:
+    FREEZE: True
+  ROI_HEADS:
+    NAME: "DistillMarginROIHeads"
+LOSS:
+  ADJUST_STAGE: 'distill'
+SOLVER:
+  BASE_LR: 0.04
+OUTPUT_DIR: "checkpoints/voc/distill/t1"
+[11/13 18:41:21 detectron2]: Full config saved to /root/FSOD/checkpoints/voc/distill/ETFRes_distill1_10shot_lr40_t1/config.yaml
+preset seed 0
+[11/13 18:41:22 fsdet.modeling.roi_heads.fast_rcnn]: ETF Residusl True
+[11/13 18:41:22 fsdet.modeling.roi_heads.fast_rcnn]: ETF Residusl True
+froze backbone parameters
+froze proposal generator parameters
+[11/13 18:41:25 fvcore.common.checkpoint]: [Checkpointer] Loading from checkpoints/voc/distill/ETFRes_distill1_10shot_lr40_t1/model_final.pth ...
+[11/13 18:41:26 d2.data.build]: Distribution of instances among all 20 categories:
+|  category  | #instances   |  category   | #instances   |  category   | #instances   |
+|:----------:|:-------------|:-----------:|:-------------|:-----------:|:-------------|
+| aeroplane  | 311          |   bicycle   | 389          |    boat     | 393          |
+|   bottle   | 657          |     car     | 1541         |     cat     | 370          |
+|   chair    | 1374         | diningtable | 299          |     dog     | 530          |
+|   horse    | 395          |   person    | 5227         | pottedplant | 592          |
+|   sheep    | 311          |    train    | 302          |  tvmonitor  | 361          |
+|    bird    | 576          |     bus     | 254          |     cow     | 329          |
+| motorbike  | 369          |    sofa     | 396          |             |              |
+|   total    | 14976        |             |              |             |              |
+[11/13 18:41:26 d2.data.dataset_mapper]: [DatasetMapper] Augmentations used in inference: [ResizeShortestEdge(short_edge_length=(800, 800), max_size=1333, sample_style='choice')]
+[11/13 18:41:26 d2.data.common]: Serializing 4952 elements to byte tensors and concatenating them all ...
+[11/13 18:41:26 d2.data.common]: Serialized dataset takes 2.22 MiB
+[11/13 18:41:26 fsdet.evaluation.evaluator]: Start inference on 4952 images
+[11/13 18:41:29 fsdet.evaluation.evaluator]: Inference done 50/4952. 0.0446 s / img. ETA=0:03:38
+[11/13 18:41:32 fsdet.evaluation.evaluator]: Inference done 100/4952. 0.0443 s / img. ETA=0:03:35
+[11/13 18:41:34 fsdet.evaluation.evaluator]: Inference done 150/4952. 0.0443 s / img. ETA=0:03:32
+[11/13 18:41:36 fsdet.evaluation.evaluator]: Inference done 200/4952. 0.0443 s / img. ETA=0:03:30
+[11/13 18:41:38 fsdet.evaluation.evaluator]: Inference done 250/4952. 0.0443 s / img. ETA=0:03:28
+[11/13 18:41:40 fsdet.evaluation.evaluator]: Inference done 300/4952. 0.0442 s / img. ETA=0:03:25
+[11/13 18:41:43 fsdet.evaluation.evaluator]: Inference done 350/4952. 0.0442 s / img. ETA=0:03:23
+[11/13 18:41:45 fsdet.evaluation.evaluator]: Inference done 400/4952. 0.0443 s / img. ETA=0:03:21
+[11/13 18:41:47 fsdet.evaluation.evaluator]: Inference done 450/4952. 0.0443 s / img. ETA=0:03:19
+[11/13 18:41:49 fsdet.evaluation.evaluator]: Inference done 500/4952. 0.0443 s / img. ETA=0:03:17
+[11/13 18:41:51 fsdet.evaluation.evaluator]: Inference done 550/4952. 0.0443 s / img. ETA=0:03:14
+[11/13 18:41:54 fsdet.evaluation.evaluator]: Inference done 600/4952. 0.0443 s / img. ETA=0:03:12
+[11/13 18:41:56 fsdet.evaluation.evaluator]: Inference done 650/4952. 0.0443 s / img. ETA=0:03:10
+[11/13 18:41:58 fsdet.evaluation.evaluator]: Inference done 700/4952. 0.0444 s / img. ETA=0:03:08
+[11/13 18:42:00 fsdet.evaluation.evaluator]: Inference done 750/4952. 0.0444 s / img. ETA=0:03:06
+[11/13 18:42:03 fsdet.evaluation.evaluator]: Inference done 800/4952. 0.0444 s / img. ETA=0:03:04
+[11/13 18:42:05 fsdet.evaluation.evaluator]: Inference done 850/4952. 0.0444 s / img. ETA=0:03:02
+[11/13 18:42:07 fsdet.evaluation.evaluator]: Inference done 900/4952. 0.0445 s / img. ETA=0:03:00
+[11/13 18:42:09 fsdet.evaluation.evaluator]: Inference done 950/4952. 0.0445 s / img. ETA=0:02:57
+[11/13 18:42:12 fsdet.evaluation.evaluator]: Inference done 1000/4952. 0.0445 s / img. ETA=0:02:55
+[11/13 18:42:14 fsdet.evaluation.evaluator]: Inference done 1050/4952. 0.0445 s / img. ETA=0:02:53
+[11/13 18:42:16 fsdet.evaluation.evaluator]: Inference done 1100/4952. 0.0446 s / img. ETA=0:02:51
+[11/13 18:42:18 fsdet.evaluation.evaluator]: Inference done 1150/4952. 0.0446 s / img. ETA=0:02:49
+[11/13 18:42:21 fsdet.evaluation.evaluator]: Inference done 1200/4952. 0.0447 s / img. ETA=0:02:47
+[11/13 18:42:23 fsdet.evaluation.evaluator]: Inference done 1250/4952. 0.0447 s / img. ETA=0:02:45
+[11/13 18:42:25 fsdet.evaluation.evaluator]: Inference done 1300/4952. 0.0448 s / img. ETA=0:02:43
+[11/13 18:42:28 fsdet.evaluation.evaluator]: Inference done 1350/4952. 0.0448 s / img. ETA=0:02:41
+[11/13 18:42:30 fsdet.evaluation.evaluator]: Inference done 1400/4952. 0.0448 s / img. ETA=0:02:39
+[11/13 18:42:32 fsdet.evaluation.evaluator]: Inference done 1450/4952. 0.0449 s / img. ETA=0:02:37
+[11/13 18:42:34 fsdet.evaluation.evaluator]: Inference done 1500/4952. 0.0449 s / img. ETA=0:02:35
+[11/13 18:42:37 fsdet.evaluation.evaluator]: Inference done 1550/4952. 0.0450 s / img. ETA=0:02:33
+[11/13 18:42:39 fsdet.evaluation.evaluator]: Inference done 1600/4952. 0.0450 s / img. ETA=0:02:30
+[11/13 18:42:41 fsdet.evaluation.evaluator]: Inference done 1650/4952. 0.0451 s / img. ETA=0:02:28
+[11/13 18:42:44 fsdet.evaluation.evaluator]: Inference done 1700/4952. 0.0451 s / img. ETA=0:02:26
+[11/13 18:42:46 fsdet.evaluation.evaluator]: Inference done 1750/4952. 0.0452 s / img. ETA=0:02:24
+[11/13 18:42:48 fsdet.evaluation.evaluator]: Inference done 1800/4952. 0.0452 s / img. ETA=0:02:22
+[11/13 18:42:51 fsdet.evaluation.evaluator]: Inference done 1850/4952. 0.0452 s / img. ETA=0:02:20
+[11/13 18:42:53 fsdet.evaluation.evaluator]: Inference done 1900/4952. 0.0453 s / img. ETA=0:02:18
+[11/13 18:42:55 fsdet.evaluation.evaluator]: Inference done 1950/4952. 0.0453 s / img. ETA=0:02:16
+[11/13 18:42:58 fsdet.evaluation.evaluator]: Inference done 2000/4952. 0.0454 s / img. ETA=0:02:13
+[11/13 18:43:00 fsdet.evaluation.evaluator]: Inference done 2050/4952. 0.0454 s / img. ETA=0:02:11
+[11/13 18:43:03 fsdet.evaluation.evaluator]: Inference done 2100/4952. 0.0455 s / img. ETA=0:02:09
+[11/13 18:43:05 fsdet.evaluation.evaluator]: Inference done 2150/4952. 0.0455 s / img. ETA=0:02:07
+[11/13 18:43:07 fsdet.evaluation.evaluator]: Inference done 2200/4952. 0.0456 s / img. ETA=0:02:05
+[11/13 18:43:10 fsdet.evaluation.evaluator]: Inference done 2250/4952. 0.0456 s / img. ETA=0:02:03
+[11/13 18:43:12 fsdet.evaluation.evaluator]: Inference done 2300/4952. 0.0457 s / img. ETA=0:02:01
+[11/13 18:43:14 fsdet.evaluation.evaluator]: Inference done 2350/4952. 0.0457 s / img. ETA=0:01:58
+[11/13 18:43:17 fsdet.evaluation.evaluator]: Inference done 2400/4952. 0.0457 s / img. ETA=0:01:56
+[11/13 18:43:19 fsdet.evaluation.evaluator]: Inference done 2450/4952. 0.0458 s / img. ETA=0:01:54
+[11/13 18:43:22 fsdet.evaluation.evaluator]: Inference done 2500/4952. 0.0458 s / img. ETA=0:01:52
+[11/13 18:43:24 fsdet.evaluation.evaluator]: Inference done 2550/4952. 0.0459 s / img. ETA=0:01:50
+[11/13 18:43:26 fsdet.evaluation.evaluator]: Inference done 2600/4952. 0.0459 s / img. ETA=0:01:47
+[11/13 18:43:29 fsdet.evaluation.evaluator]: Inference done 2650/4952. 0.0459 s / img. ETA=0:01:45
+[11/13 18:43:31 fsdet.evaluation.evaluator]: Inference done 2700/4952. 0.0460 s / img. ETA=0:01:43
+[11/13 18:43:34 fsdet.evaluation.evaluator]: Inference done 2750/4952. 0.0460 s / img. ETA=0:01:41
+[11/13 18:43:36 fsdet.evaluation.evaluator]: Inference done 2800/4952. 0.0460 s / img. ETA=0:01:39
+[11/13 18:43:38 fsdet.evaluation.evaluator]: Inference done 2850/4952. 0.0461 s / img. ETA=0:01:36
+[11/13 18:43:41 fsdet.evaluation.evaluator]: Inference done 2900/4952. 0.0461 s / img. ETA=0:01:34
+[11/13 18:43:43 fsdet.evaluation.evaluator]: Inference done 2950/4952. 0.0461 s / img. ETA=0:01:32
+[11/13 18:43:46 fsdet.evaluation.evaluator]: Inference done 3000/4952. 0.0462 s / img. ETA=0:01:30
+[11/13 18:43:48 fsdet.evaluation.evaluator]: Inference done 3050/4952. 0.0462 s / img. ETA=0:01:27
+[11/13 18:43:50 fsdet.evaluation.evaluator]: Inference done 3100/4952. 0.0462 s / img. ETA=0:01:25
+[11/13 18:43:53 fsdet.evaluation.evaluator]: Inference done 3150/4952. 0.0463 s / img. ETA=0:01:23
+[11/13 18:43:55 fsdet.evaluation.evaluator]: Inference done 3200/4952. 0.0463 s / img. ETA=0:01:21
+[11/13 18:43:58 fsdet.evaluation.evaluator]: Inference done 3250/4952. 0.0463 s / img. ETA=0:01:18
+[11/13 18:44:00 fsdet.evaluation.evaluator]: Inference done 3300/4952. 0.0463 s / img. ETA=0:01:16
+[11/13 18:44:02 fsdet.evaluation.evaluator]: Inference done 3350/4952. 0.0464 s / img. ETA=0:01:14
+[11/13 18:44:05 fsdet.evaluation.evaluator]: Inference done 3400/4952. 0.0464 s / img. ETA=0:01:12
+[11/13 18:44:07 fsdet.evaluation.evaluator]: Inference done 3450/4952. 0.0464 s / img. ETA=0:01:09
+[11/13 18:44:10 fsdet.evaluation.evaluator]: Inference done 3500/4952. 0.0464 s / img. ETA=0:01:07
+[11/13 18:44:12 fsdet.evaluation.evaluator]: Inference done 3550/4952. 0.0465 s / img. ETA=0:01:05
+[11/13 18:44:15 fsdet.evaluation.evaluator]: Inference done 3600/4952. 0.0465 s / img. ETA=0:01:02
+[11/13 18:44:17 fsdet.evaluation.evaluator]: Inference done 3650/4952. 0.0465 s / img. ETA=0:01:00
+[11/13 18:44:19 fsdet.evaluation.evaluator]: Inference done 3700/4952. 0.0466 s / img. ETA=0:00:58
+[11/13 18:44:22 fsdet.evaluation.evaluator]: Inference done 3750/4952. 0.0466 s / img. ETA=0:00:55
+[11/13 18:44:24 fsdet.evaluation.evaluator]: Inference done 3800/4952. 0.0466 s / img. ETA=0:00:53
+[11/13 18:44:27 fsdet.evaluation.evaluator]: Inference done 3850/4952. 0.0466 s / img. ETA=0:00:51
+[11/13 18:44:29 fsdet.evaluation.evaluator]: Inference done 3900/4952. 0.0466 s / img. ETA=0:00:49
+[11/13 18:44:31 fsdet.evaluation.evaluator]: Inference done 3950/4952. 0.0467 s / img. ETA=0:00:46
+[11/13 18:44:34 fsdet.evaluation.evaluator]: Inference done 4000/4952. 0.0467 s / img. ETA=0:00:44
+[11/13 18:44:36 fsdet.evaluation.evaluator]: Inference done 4050/4952. 0.0467 s / img. ETA=0:00:42
+[11/13 18:44:39 fsdet.evaluation.evaluator]: Inference done 4100/4952. 0.0467 s / img. ETA=0:00:39
+[11/13 18:44:41 fsdet.evaluation.evaluator]: Inference done 4150/4952. 0.0467 s / img. ETA=0:00:37
+[11/13 18:44:43 fsdet.evaluation.evaluator]: Inference done 4200/4952. 0.0468 s / img. ETA=0:00:35
+[11/13 18:44:46 fsdet.evaluation.evaluator]: Inference done 4250/4952. 0.0468 s / img. ETA=0:00:32
+[11/13 18:44:48 fsdet.evaluation.evaluator]: Inference done 4300/4952. 0.0468 s / img. ETA=0:00:30
+[11/13 18:44:51 fsdet.evaluation.evaluator]: Inference done 4350/4952. 0.0468 s / img. ETA=0:00:28
+[11/13 18:44:53 fsdet.evaluation.evaluator]: Inference done 4400/4952. 0.0468 s / img. ETA=0:00:25
+[11/13 18:44:56 fsdet.evaluation.evaluator]: Inference done 4450/4952. 0.0468 s / img. ETA=0:00:23
+[11/13 18:44:58 fsdet.evaluation.evaluator]: Inference done 4500/4952. 0.0469 s / img. ETA=0:00:21
+[11/13 18:45:00 fsdet.evaluation.evaluator]: Inference done 4550/4952. 0.0469 s / img. ETA=0:00:18
+[11/13 18:45:03 fsdet.evaluation.evaluator]: Inference done 4600/4952. 0.0469 s / img. ETA=0:00:16
+[11/13 18:45:05 fsdet.evaluation.evaluator]: Inference done 4650/4952. 0.0469 s / img. ETA=0:00:14
+[11/13 18:45:08 fsdet.evaluation.evaluator]: Inference done 4700/4952. 0.0469 s / img. ETA=0:00:11
+[11/13 18:45:10 fsdet.evaluation.evaluator]: Inference done 4750/4952. 0.0469 s / img. ETA=0:00:09
+[11/13 18:45:12 fsdet.evaluation.evaluator]: Inference done 4800/4952. 0.0470 s / img. ETA=0:00:07
+[11/13 18:45:15 fsdet.evaluation.evaluator]: Inference done 4850/4952. 0.0470 s / img. ETA=0:00:04
+[11/13 18:45:17 fsdet.evaluation.evaluator]: Inference done 4900/4952. 0.0470 s / img. ETA=0:00:02
+[11/13 18:45:20 fsdet.evaluation.evaluator]: Inference done 4950/4952. 0.0470 s / img. ETA=0:00:00
+[11/13 18:45:20 fsdet.evaluation.evaluator]: Total inference time: 0:03:52 (0.046897 s / img per device, on 1 devices)
+[11/13 18:45:20 fsdet.evaluation.evaluator]: Total inference pure compute time: 0:03:44 (0.045363 s / img per device, on 1 devices)
+[11/13 18:45:20 fsdet.evaluation.pascal_voc_evaluation]: Evaluating voc_2007_test_all1 using 2007 metric. Note that results do not use the official Matlab API.
+[11/13 18:45:43 fsdet.evaluation.pascal_voc_evaluation]: Evaluate per-class mAP50:
+|  aeroplane  |  bicycle  |  boat  |  bottle  |  car   |  cat   |  chair  |  diningtable  |  dog   |  horse  |  person  |  pottedplant  |  sheep  |  train  |  tvmonitor  |  bird  |  bus   |  cow   |  motorbike  |  sofa  |
+|:-----------:|:---------:|:------:|:--------:|:------:|:------:|:-------:|:-------------:|:------:|:-------:|:--------:|:-------------:|:-------:|:-------:|:-----------:|:------:|:------:|:------:|:-----------:|:------:|
+|   87.353    |  86.967   | 70.790 |  74.823  | 87.519 | 87.926 | 67.056  |    78.002     | 83.224 | 83.908  |  86.461  |    59.094     | 80.568  | 84.225  |   81.454    | 43.308 | 73.947 | 52.447 |   63.826    | 50.960 |
+[11/13 18:45:43 fsdet.evaluation.pascal_voc_evaluation]: Evaluate overall bbox:
+|   AP   |  AP50  |  AP75  |  bAP   |  bAP50  |  bAP75  |  nAP   |  nAP50  |  nAP75  |
+|:------:|:------:|:------:|:------:|:-------:|:-------:|:------:|:-------:|:-------:|
+| 47.755 | 74.193 | 51.661 | 52.600 | 79.958  | 57.961  | 33.220 | 56.898  | 32.762  |
+[11/13 18:45:43 fsdet.engine.defaults]: Evaluation results for voc_2007_test_all1 in csv format:
+[11/13 18:45:43 fsdet.evaluation.testing]: copypaste: Task: bbox
+[11/13 18:45:43 fsdet.evaluation.testing]: copypaste: AP,AP50,AP75,bAP,bAP50,bAP75,nAP,nAP50,nAP75
+[11/13 18:45:43 fsdet.evaluation.testing]: copypaste: 47.7552,74.1929,51.6611,52.6004,79.9580,57.9607,33.2195,56.8976,32.7622
+/root/miniconda3/lib/python3.8/site-packages/torch/_tensor.py:575: UserWarning: floor_divide is deprecated, and will be removed in a future version of pytorch. It currently rounds toward 0 (like the 'trunc' function NOT 'floor'). This results in incorrect rounding for negative values.
+To keep the current behavior, use torch.div(a, b, rounding_mode='trunc'), or for actual floor division, use torch.div(a, b, rounding_mode='floor'). (Triggered internally at  /pytorch/aten/src/ATen/native/BinaryOps.cpp:467.)
+  return torch.floor_divide(self, other)
+/root/miniconda3/lib/python3.8/site-packages/torch/nn/functional.py:718: UserWarning: Named tensors and all their associated APIs are an experimental feature and subject to change. Please do not use them for anything important until they are released as stable. (Triggered internally at  /pytorch/c10/core/TensorImpl.h:1156.)
+  return torch.max_pool2d(input, kernel_size, stride, padding, dilation, ceil_mode)
