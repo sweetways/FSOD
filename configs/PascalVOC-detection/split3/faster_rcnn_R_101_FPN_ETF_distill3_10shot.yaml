@@ -16,8 +16,8 @@ MODEL:
 LOSS:
   ADJUST_STAGE: 'distill'
 SOLVER:
-  BASE_LR: 0.02
+  BASE_LR: 1e-3
 # Using 0.04 is slightly better than 0.02
-OUTPUT_DIR: "/root/autodl-tmp/checkpoints/voc/distill/t1"
+OUTPUT_DIR: "/root/autodl-tmp/checkpoints/voc/distill/t2"
 TRAIN:
   CACHE_UPDATE_INTERVAL: 1000

@@ -2,11 +2,20 @@
 
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 
 # 引入必要的模块和类
 from .build import META_ARCH_REGISTRY
 from fsdet.modeling.meta_arch.rcnn import GeneralizedRCNN
 from detectron2.modeling.backbone import build_backbone
+
+from detectron2.structures import pairwise_iou, Instances
+from detectron2.utils.events import get_event_storage
+from detectron2.utils.visualizer import Visualizer
+import matplotlib.pyplot as plt
+import numpy as np
+from fsdet.modeling.attention.self_attention import selfAttention
+
 
 @META_ARCH_REGISTRY.register()
 class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
@@ -19,6 +28,11 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         self.cache_update_interval = cfg.TRAIN.CACHE_UPDATE_INTERVAL  # 每隔一定步长更新缓存
         self.cfg = cfg
         self.step_count = 0
+
+        self.self_attention_blocks = nn.ModuleDict({
+            "p3": selfAttention(embed_dim=256, num_heads=8),  # 256是FPN p3的通道数
+            "p4": selfAttention(embed_dim=256, num_heads=8)   # 256是FPN p4的通道数
+        })
 
 
     def _initialize_teacher_backbone(self):
@@ -45,14 +59,12 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
 
         return teacher_backbone
     # 定义对比损失函数
-    def contrastive_loss(self, student_features, teacher_features, temperature=0.5):
+    def contrastive_loss(self, student_features, teacher_features, positive_samples,
+                         negative_samples, temperature=0.5):
         # 提取特定的特征层，例如最后一层特征
         student_features = student_features[next(iter(student_features))]
         teacher_features = teacher_features[next(iter(teacher_features))]
-        if torch.isnan(student_features).any() or torch.isinf(student_features).any():
-            raise ValueError("Student features contain NaN or Inf values")
-        if torch.isnan(teacher_features).any() or torch.isinf(teacher_features).any():
-            raise ValueError("Teacher features contain NaN or Inf values")
+
         # 对特征进行归一化处理
         student_features = F.normalize(student_features, dim=-1)
         teacher_features = F.normalize(teacher_features, dim=-1)
@@ -61,13 +73,19 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         if student_features.shape != teacher_features.shape:
             teacher_features = F.interpolate(teacher_features, size=student_features.shape[2:], mode='bilinear', align_corners=False)
 
-        # 计算对比损失
-        student_features_flat = student_features.view(student_features.size(0), -1)
-        teacher_features_flat = teacher_features.view(teacher_features.size(0), -1)
-        logits = torch.matmul(student_features_flat, teacher_features_flat.T) / temperature
-        labels = torch.arange(logits.size(0)).long().to(logits.device)
-        loss = F.cross_entropy(logits, labels)
-        return loss
+        # 正样本对比
+        positive_student_features = student_features[positive_samples]
+        positive_teacher_features = teacher_features[positive_samples]
+        pos_sim = torch.exp(torch.sum(positive_student_features * positive_teacher_features, dim=-1) / temperature)
+
+        # 负样本对比
+        negative_student_features = student_features[negative_samples]
+        negative_teacher_features = teacher_features[negative_samples]
+        neg_sim = torch.exp(torch.sum(negative_student_features * negative_teacher_features, dim=-1) / temperature)
+
+        # 计算 InfoNCE 损失
+        loss = -torch.log(pos_sim / (pos_sim + neg_sim.sum(dim=0, keepdim=True)))
+        return loss.mean()
 
     def forward(self, batched_inputs):
         if not self.training:
@@ -97,10 +115,17 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
                     self.teacher_features_cache = teacher_features
             else:
                 teacher_features = self.teacher_features_cache
+        # 提取 Student 模型的特征
+        # 提取用于对比学习的特定层次的特征
+        fpn_keys = ["p3", "p4"]
+        student_features = {key: features[key] for key in fpn_keys}
+        teacher_features = {key: self.teacher_features_cache[key] for key in fpn_keys if key in self.teacher_features_cache}
 
-        
+        positive_samples, negative_samples = self.assign_positive_negative_samples(proposals, 
+                                                                                   Instances(gt_boxes=[x.gt_boxes for x in gt_instances], 
+                                                                                             gt_classes=[x.gt_classes for x in gt_instances]))
         # 计算对比损失
-        contrastive_loss = self.contrastive_loss(student_features, teacher_features, 1)
+        contrastive_loss = self.contrastive_loss(student_features, teacher_features, positive_samples, negative_samples, 1)
         self.step_count += 1
 
         # 从配置中获取对比损失权重
@@ -112,4 +137,73 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         losses.update(proposal_losses)
         losses['contrastive_loss'] = contrastive_loss
 
+        self.visualize_results(images, proposals, gt_instances[0] if gt_instances else None)
         return losses
+    
+    def compute_iou(self, boxes1, boxes2):
+        """
+        使用 Detectron2 提供的 pairwise_iou 函数计算 IoU
+        """
+        return pairwise_iou(boxes1, boxes2)
+
+    def assign_positive_negative_samples(self, proposals, gt_instances, iou_threshold_pos=0.5, iou_threshold_neg=0.3):
+        """
+        使用 Detectron2 工具划分正负样本
+        """
+        # 提取 proposals 和 ground truth boxes
+        proposal_boxes = proposals.proposal_boxes.tensor
+        gt_boxes = gt_instances.gt_boxes.tensor
+
+        # 计算 IoU
+        iou_matrix = pairwise_iou(proposal_boxes, gt_boxes)
+
+        positive_samples = []
+        negative_samples = []
+
+        for i, iou in enumerate(iou_matrix):
+            max_iou = iou.max()
+            gt_index = iou.argmax()
+            if max_iou >= iou_threshold_pos and proposals.gt_classes[i] == gt_instances.gt_classes[gt_index]:
+                positive_samples.append(i)
+            elif max_iou < iou_threshold_neg:
+                negative_samples.append(i)
+
+        return positive_samples, negative_samples
+    
+    def visualize_results(self, images, proposals, targets=None):
+        """
+        使用 Detectron2 的可视化工具输出检测结果
+        """
+        img = images[0].cpu().numpy().transpose(1, 2, 0)
+        v = Visualizer(img)
+
+        # 绘制 proposals
+        if proposals:
+            proposal_boxes = proposals.proposal_boxes.tensor.cpu().numpy()
+            v = v.overlay_instances(boxes=proposal_boxes)
+
+        # 绘制 Ground Truth
+        if targets:
+            gt_boxes = targets.gt_boxes.tensor.cpu().numpy()
+            v = v.overlay_instances(boxes=gt_boxes, alpha=0.5, color="green")
+
+        result_img = v.get_output().get_image()
+
+        # 使用 matplotlib 可视化
+        plt.figure(figsize=(12, 8))
+        plt.imshow(result_img)
+        plt.axis('off')
+        plt.show()
+
+    def plot_contrastive_loss(self):
+        """
+        可视化对比学习的损失变化
+        """
+        plt.figure(figsize=(10, 5))
+        plt.plot(self.contrastive_losses, label='Contrastive Loss')
+        plt.xlabel('Iteration')
+        plt.ylabel('Loss')
+        plt.title('Contrastive Loss During Training')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
