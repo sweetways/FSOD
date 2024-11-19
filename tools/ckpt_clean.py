@@ -26,12 +26,7 @@ def reset_ckpt(ckpt):
         ckpt["iteration"] = 0
 
     # Copy backbone and box predictor weights for student model initialization
-    for key in [k for k in ckpt['model'] if 'box_' in k or 'backbone' in k]:
-        new_weight = ckpt['model'][key].clone()
-        key_comp = key.split('.')
-        # Add 'student_' prefix to distinguish student weights
-        new_key = '.'.join(key_comp[:1] + ['student_' + key_comp[1]] + key_comp[2:])
-        ckpt['model'][new_key] = new_weight
+    
 
     print("Checkpoint reset: optimizer and scheduler removed, student model weights created.")
 

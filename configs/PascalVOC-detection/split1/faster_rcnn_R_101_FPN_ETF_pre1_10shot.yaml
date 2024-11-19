@@ -23,10 +23,10 @@ LOSS:
 SOLVER:
   IMS_PER_BATCH: 16
   STEPS: (12000, 16000)
-  MAX_ITER: 20000
+  MAX_ITER: 15000
   WARMUP_ITERS: 200
   BASE_LR: 0.02
 TEST:
-  EVAL_PERIOD: 3000
+  EVAL_PERIOD: 2000
 RESETOUT: True
-OUTPUT_DIR: "checkpoints/voc/prior/t1"
+OUTPUT_DIR: "/root/autodl-tmp/checkpoints/voc/prior/t1"
