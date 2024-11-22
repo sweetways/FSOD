@@ -84,6 +84,7 @@ def setup_new_config(cfg):
     cfg.MODEL.USE_CONTRASTIVE = True  # 启用对比学习
     cfg.MODEL.CONTRASTIVE_WEIGHT = 0.1  # 对比损失的权重
     cfg.MODEL.IS_DISTILL = True
+    cfg.MODEL.TEMPERATURE = 0.1
     cfg.TRAIN = get_cfg()
     cfg.TRAIN.CACHE_UPDATE_INTERVAL = 1000  # 更新教师特征缓存的步长
     return cfg
@@ -98,61 +99,62 @@ def setup(args):
     if args.opts:
         cfg.merge_from_list(args.opts)
     if cfg.RESETOUT:
+        output_prefix = '/root/autodl-tmp/'  # 定义前缀
         dir_comp = cfg.OUTPUT_DIR.split('/')
         shot = cfg.DATASETS.TRAIN[0].split('_')[-1] # The first one is always the novel set
         data = cfg.DATASETS.TRAIN[0].split('_')[0]
         model_key = 'ETFRes' if cfg.MODEL.ETF.RESIDUAL else 'ETF'
         if data == 'voc':
             the_split = cfg.DATASETS.TRAIN[0].split('_')[-2][-1]
-            lr = int(1000*cfg.SOLVER.BASE_LR)
-            bk_ratio = cfg.LOSS.ADJUST_BACK/1000.0
+            lr = int(1000 * cfg.SOLVER.BASE_LR)
+            bk_ratio = cfg.LOSS.ADJUST_BACK / 1000.0
             rfs = cfg.DATALOADER.REPEAT_THRESHOLD * 100 if cfg.DATALOADER.SAMPLER_TRAIN == 'RepeatFactorTrainingSampler' else 0
+
             if cfg.LOSS.ADJUST_STAGE == 'distill':
-                
                 print('Logging modification for finetuning')
                 loss_suffix = dir_comp[-1]
                 new_out_dir = '{}_distill{}_{}_lr{}_{}'.format(
                     model_key, the_split, shot, lr, loss_suffix
                 )
-                new_out_dir = '/'.join(dir_comp[:3]+[new_out_dir])
-                dir_comp = cfg.OUTPUT_DIR.split('/')
+                new_out_dir = output_prefix + '/' + '/'.join(dir_comp[:3] + [new_out_dir])  # 修正路径
                 load_path = '/root/autodl-tmp/checkpoints/voc/prior/ETFRes_pre{}_{}_lr20_adj{}_rfs{}_t1/model_clean_student.pth'.format(
-                    the_split, shot, cfg.LOSS.ADJUST_BACK/1000.0, 5.0 if '2' in shot else 1.0,
+                    the_split, shot, cfg.LOSS.ADJUST_BACK / 1000.0, 5.0 if '2' in shot else 1.0,
                 )
             else:
                 print('Logging modification for pre-training')
-                new_out_dir = '/'.join(dir_comp[:3]+[
-                    '{}_pre{}_{}_lr{}_adj{}_rfs{}_{}'.format(model_key,the_split,shot,lr,bk_ratio,rfs,dir_comp[-1])
+                new_out_dir = output_prefix + '/' + '/'.join(dir_comp[:3] + [
+                    '{}_pre{}_{}_lr{}_adj{}_rfs{}_{}'.format(model_key, the_split, shot, lr, bk_ratio, rfs, dir_comp[-1])
                     if cfg.LOSS.TERM == 'adjustment' else
-                    '{}_pre{}_{}_lr{}_{}'.format(model_key,the_split,shot,lr,dir_comp[-1])
+                    '{}_pre{}_{}_lr{}_{}'.format(model_key, the_split, shot, lr, dir_comp[-1])
                 ])
                 load_path = None
+
         elif data == 'coco':
-            lr = int(1000*cfg.SOLVER.BASE_LR)
-            bk_ratio = cfg.LOSS.ADJUST_BACK/1000.0
+            lr = int(1000 * cfg.SOLVER.BASE_LR)
+            bk_ratio = cfg.LOSS.ADJUST_BACK / 1000.0
+
             if cfg.LOSS.ADJUST_STAGE == 'distill':
-                assert cfg.MODEL.BACKBONE.FREEZE 
+                assert cfg.MODEL.BACKBONE.FREEZE
                 print('Logging modification for finetuning')
                 loss_suffix = dir_comp[-1]
                 new_out_dir = '{}_distill_{}_lr{}_adj{}_{}'.format(
-                    model_key, shot, lr,
-                    bk_ratio, loss_suffix
+                    model_key, shot, lr, bk_ratio, loss_suffix
                 )
-                new_out_dir = '/'.join(dir_comp[:3]+[new_out_dir])
-                load_path = 'checkpoints/coco/prior/ETFRes_pre_{}_lr20_adj{}.0_rfs2.5_t1/model_clean_student.pth'.format(
+                new_out_dir = output_prefix + '/' + '/'.join(dir_comp[:3] + [new_out_dir])  # 修正路径
+                load_path = '/root/autodl-tmp/checkpoints/coco/prior/ETFRes_pre_{}_lr20_adj{}.0_rfs2.5_t1/model_clean_student.pth'.format(
                     shot, 20 if '30' in shot else 10,
                 )
-                # cfg.LOSS.DISTILL_MAR
             else:
                 print('Logging modification for pre-training')
                 rfs = cfg.DATALOADER.REPEAT_THRESHOLD * 100 if cfg.DATALOADER.SAMPLER_TRAIN == 'RepeatFactorTrainingSampler' else 0
-                new_out_dir = '/'.join(dir_comp[:3]+[
-                    '{}_pre_{}_lr{}_adj{}_rfs{}_{}'.format(model_key,shot,lr,bk_ratio,rfs,dir_comp[-1])
+                new_out_dir = output_prefix + '/' + '/'.join(dir_comp[:3] + [
+                    '{}_pre_{}_lr{}_adj{}_rfs{}_{}'.format(model_key, shot, lr, bk_ratio, rfs, dir_comp[-1])
                     if cfg.LOSS.TERM == 'adjustment' else
-                    '{}_pre_{}_lr{}_{}'.format(model_key,shot,lr,dir_comp[-1])
+                    '{}_pre_{}_lr{}_{}'.format(model_key, shot, lr, dir_comp[-1])
                 ])
                 load_path = None
-        new_cfg_list = ['OUTPUT_DIR',new_out_dir] if load_path is None else ['OUTPUT_DIR',new_out_dir,'MODEL.WEIGHTS',load_path]
+
+        new_cfg_list = ['OUTPUT_DIR', new_out_dir] if load_path is None else ['OUTPUT_DIR', new_out_dir, 'MODEL.WEIGHTS', load_path]
         cfg.merge_from_list(new_cfg_list)
     cfg.freeze()
     set_global_cfg(cfg)
@@ -194,3 +196,4 @@ if __name__ == "__main__":
         dist_url=args.dist_url,
         args=(args,),
     )
+    # main(args)

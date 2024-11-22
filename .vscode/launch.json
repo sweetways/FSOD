@@ -18,16 +18,17 @@
             "name": "train digeo",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/tools/train_net.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
+            "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "args": [
-                "--num-gpus", "0",
-                "--dist-url", "tcp://127.0.0.1:48888",
-                "--config-file", "${workspaceFolder}/configs/PascalVOC-detection/split1/faster_rcnn_R_101_FPN_ETF_distill1_10shot.yaml"
+                "--num-gpus", "2",
+                
+                "--config-file", "${workspaceFolder}/configs/PascalVOC-detection/split3/faster_rcnn_R_101_FPN_ETF_distill3_10shot.yaml"
             ]
         },
     ]

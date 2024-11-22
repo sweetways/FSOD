@@ -8,8 +8,8 @@ import torch.nn as nn
 from .build import META_ARCH_REGISTRY
 from fsdet.modeling.meta_arch.rcnn import GeneralizedRCNN
 from detectron2.modeling.backbone import build_backbone
-
-from detectron2.structures import pairwise_iou, Instances
+from detectron2.layers import ROIAlign
+from detectron2.structures import pairwise_iou, Instances, Boxes
 from detectron2.utils.events import get_event_storage
 from detectron2.utils.visualizer import Visualizer
 import matplotlib.pyplot as plt
@@ -28,11 +28,12 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         self.cache_update_interval = cfg.TRAIN.CACHE_UPDATE_INTERVAL  # 每隔一定步长更新缓存
         self.cfg = cfg
         self.step_count = 0
+        self.temperature = cfg.MODEL.TEMPERATURE
 
-        self.self_attention_blocks = nn.ModuleDict({
-            "p3": selfAttention(embed_dim=256, num_heads=8),  # 256是FPN p3的通道数
-            "p4": selfAttention(embed_dim=256, num_heads=8)   # 256是FPN p4的通道数
-        })
+        # self.self_attention_blocks = nn.ModuleDict({
+        #     "p3": selfAttention(embed_dim=256, num_heads=8),  # 256是FPN p3的通道数
+        #     "p4": selfAttention(embed_dim=256, num_heads=8)   # 256是FPN p4的通道数
+        # })
 
 
     def _initialize_teacher_backbone(self):
@@ -58,33 +59,74 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
             param.requires_grad = False
 
         return teacher_backbone
-    # 定义对比损失函数
+  
+
     def contrastive_loss(self, student_features, teacher_features, positive_samples,
-                         negative_samples, temperature=0.5):
-        # 提取特定的特征层，例如最后一层特征
-        student_features = student_features[next(iter(student_features))]
-        teacher_features = teacher_features[next(iter(teacher_features))]
+                        negative_samples, proposals, batched_inputs, temperature=0.5):
+        # 定义 RoI Align 层
+        feature_key = "p4"  # 根据你的模型选择合适的特征层
+        roi_align = ROIAlign(
+            output_size=(7, 7),  # 输出尺寸，这里将特征池化为 1x1
+            spatial_scale=1.0 / self.backbone.output_shape()[feature_key].stride,  # 特征图与原图的尺寸比例
+            sampling_ratio=0,
+            aligned=True
+        )
 
-        # 对特征进行归一化处理
-        student_features = F.normalize(student_features, dim=-1)
-        teacher_features = F.normalize(teacher_features, dim=-1)
+        # 准备 RoI 盒子
+        def get_rois(samples):
+            rois = []
+            for idx in samples:
+                batch_idx = idx // self.num_proposals_per_image
+                feature_idx = idx % self.num_proposals_per_image
+                # 获取对应的 proposal_box
+                proposal_box = proposals[batch_idx].proposal_boxes[feature_idx]
+                # 构建 RoI：[batch_idx, x1, y1, x2, y2]
+                box = proposal_box.tensor  # shape: [1, 4]
+                roi = torch.cat([torch.tensor([[batch_idx]], device=box.device), box], dim=1)  # [1, 5]
+                rois.append(roi)
+            if rois:
+                return torch.cat(rois, dim=0)  # [N, 5]
+            else:
+                return torch.zeros((0, 5), device=student_features[feature_key].device)
 
-        # 调整特征层的形状使其匹配
-        if student_features.shape != teacher_features.shape:
-            teacher_features = F.interpolate(teacher_features, size=student_features.shape[2:], mode='bilinear', align_corners=False)
+        positive_rois = get_rois(positive_samples)
+        negative_rois = get_rois(negative_samples)
 
-        # 正样本对比
-        positive_student_features = student_features[positive_samples]
-        positive_teacher_features = teacher_features[positive_samples]
-        pos_sim = torch.exp(torch.sum(positive_student_features * positive_teacher_features, dim=-1) / temperature)
+        # 提取特征
+        student_feat_map = student_features[feature_key]
+        teacher_feat_map = teacher_features[feature_key]
 
-        # 负样本对比
-        negative_student_features = student_features[negative_samples]
-        negative_teacher_features = teacher_features[negative_samples]
-        neg_sim = torch.exp(torch.sum(negative_student_features * negative_teacher_features, dim=-1) / temperature)
+        if positive_rois.size(0) == 0 or negative_rois.size(0) == 0:
+            # 如果没有正样本或负样本，返回零损失
+            return torch.tensor(0.0, device=student_feat_map.device)
+
+        positive_student_features = roi_align(student_feat_map, positive_rois)
+        negative_student_features = roi_align(student_feat_map, negative_rois)
+
+        positive_teacher_features = roi_align(teacher_feat_map, positive_rois)
+        negative_teacher_features = roi_align(teacher_feat_map, negative_rois)
+
+        # 展平特征
+        positive_student_features = positive_student_features.view(positive_student_features.size(0), -1)
+        negative_student_features = negative_student_features.view(negative_student_features.size(0), -1)
+        positive_teacher_features = positive_teacher_features.view(positive_teacher_features.size(0), -1)
+        negative_teacher_features = negative_teacher_features.view(negative_teacher_features.size(0), -1)
+
+        # 对特征进行归一化
+        positive_student_features = F.normalize(positive_student_features, dim=1)
+        negative_student_features = F.normalize(negative_student_features, dim=1)
+        positive_teacher_features = F.normalize(positive_teacher_features, dim=1)
+        negative_teacher_features = F.normalize(negative_teacher_features, dim=1)
+
+        max_pos_sim = torch.max(positive_student_features * positive_teacher_features, dim=1, keepdim=True)[0]
+        pos_sim = torch.exp((torch.sum(positive_student_features * positive_teacher_features, dim=1) - max_pos_sim) / temperature)
+
+        max_neg_sim = torch.max(positive_student_features @ negative_teacher_features.t(), dim=1, keepdim=True)[0]
+        neg_sim = torch.exp((positive_student_features @ negative_teacher_features.t() - max_neg_sim) / temperature)
+        neg_sim = neg_sim.sum(dim=1)
 
         # 计算 InfoNCE 损失
-        loss = -torch.log(pos_sim / (pos_sim + neg_sim.sum(dim=0, keepdim=True)))
+        loss = -torch.log(pos_sim / (pos_sim + neg_sim))
         return loss.mean()
 
     def forward(self, batched_inputs):
@@ -94,7 +136,7 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         images = self.preprocess_image(batched_inputs)
         features = self.backbone(images.tensor)
 
-        # 提取目标实例
+        # 提取目标ground truth
         gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
 
         # Student 模型的前向传播
@@ -104,28 +146,24 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         # 提取 Student 模型的特征
         student_features = features
 
+
         # Teacher 模型的前向传播
         if self.training:
-            # 判断是否需要更新教师特征缓存
-            if self.step_count % self.cache_update_interval == 0:
-                # 只在当需要时初始化 Teacher 模型
-                teacher_backbone = self._initialize_teacher_backbone()
-                with torch.no_grad():
-                    teacher_features = teacher_backbone(images.tensor.to(self.device))
-                    self.teacher_features_cache = teacher_features
-            else:
-                teacher_features = self.teacher_features_cache
+            if not hasattr(self, 'teacher_backbone'):
+                self.teacher_backbone = self._initialize_teacher_backbone()  # 初始化教师模型
+            with torch.no_grad():
+                teacher_features = self.teacher_backbone(images.tensor)  # 使用当前批次的图像计算特征
+                self.teacher_features_cache = teacher_features  # 更新教师特征缓存
         # 提取 Student 模型的特征
         # 提取用于对比学习的特定层次的特征
-        fpn_keys = ["p3", "p4"]
-        student_features = {key: features[key] for key in fpn_keys}
-        teacher_features = {key: self.teacher_features_cache[key] for key in fpn_keys if key in self.teacher_features_cache}
+        # fpn_keys = ["p3", "p4"]
+        # student_features = {key: features[key] for key in fpn_keys}
+        # teacher_features = {key: self.teacher_features_cache[key] for key in fpn_keys if key in self.teacher_features_cache}
 
         positive_samples, negative_samples = self.assign_positive_negative_samples(proposals, 
-                                                                                   Instances(gt_boxes=[x.gt_boxes for x in gt_instances], 
-                                                                                             gt_classes=[x.gt_classes for x in gt_instances]))
+                                                                                   gt_instances)
         # 计算对比损失
-        contrastive_loss = self.contrastive_loss(student_features, teacher_features, positive_samples, negative_samples, 1)
+        contrastive_loss = self.contrastive_loss(student_features, teacher_features, positive_samples, negative_samples, proposals, batched_inputs, self.temperature)
         self.step_count += 1
 
         # 从配置中获取对比损失权重
@@ -137,7 +175,7 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         losses.update(proposal_losses)
         losses['contrastive_loss'] = contrastive_loss
 
-        self.visualize_results(images, proposals, gt_instances[0] if gt_instances else None)
+        # self.visualize_results(images, proposals, gt_instances[0] if gt_instances else None)
         return losses
     
     def compute_iou(self, boxes1, boxes2):
@@ -146,27 +184,48 @@ class ContrastiveGeneralizedRCNN(GeneralizedRCNN):
         """
         return pairwise_iou(boxes1, boxes2)
 
-    def assign_positive_negative_samples(self, proposals, gt_instances, iou_threshold_pos=0.5, iou_threshold_neg=0.3):
+    def assign_positive_negative_samples(self, proposals, gt_instances, iou_threshold_pos=0.5, iou_threshold_neg=0.3, some_threshold=3):
         """
         使用 Detectron2 工具划分正负样本
         """
         # 提取 proposals 和 ground truth boxes
-        proposal_boxes = proposals.proposal_boxes.tensor
-        gt_boxes = gt_instances.gt_boxes.tensor
+        self.num_proposals_per_image = proposals[0].proposal_boxes.tensor.shape[0]
+        proposal_boxes = torch.cat([p.proposal_boxes.tensor for p in proposals], dim=0)
+        gt_boxes = torch.cat([gt.gt_boxes.tensor for gt in gt_instances], dim=0)
 
+        proposal_boxes = Boxes(proposal_boxes)
+        gt_boxes = Boxes(gt_boxes)
         # 计算 IoU
         iou_matrix = pairwise_iou(proposal_boxes, gt_boxes)
 
         positive_samples = []
         negative_samples = []
 
-        for i, iou in enumerate(iou_matrix):
-            max_iou = iou.max()
-            gt_index = iou.argmax()
-            if max_iou >= iou_threshold_pos and proposals.gt_classes[i] == gt_instances.gt_classes[gt_index]:
-                positive_samples.append(i)
-            elif max_iou < iou_threshold_neg:
-                negative_samples.append(i)
+        # 逐个proposal，找到最大IoU和相应的GT
+        proposal_idx_offset = 0  # 用于计算proposal属于哪张图片
+        gt_idx_offset = 0  # 用于计算gt属于哪张图片
+        for img_idx, (proposal, gt) in enumerate(zip(proposals, gt_instances)):
+            # 获取当前图像的proposals和gt的数量
+            num_proposals = len(proposal.proposal_boxes)
+            num_gt_boxes = len(gt.gt_boxes)
+
+            # 从iou_matrix中获取该图像的IoU矩阵
+            iou_sub_matrix = iou_matrix[proposal_idx_offset:proposal_idx_offset+num_proposals, 
+                                        gt_idx_offset:gt_idx_offset+num_gt_boxes]
+            
+            for i, iou in enumerate(iou_sub_matrix):
+                max_iou = iou.max()
+                gt_index = iou.argmax()
+                
+                score = proposal.objectness_logits[i].item()  
+                if max_iou >= iou_threshold_pos and score > some_threshold:
+                    positive_samples.append(i + proposal_idx_offset)  # 记录全局索引
+                elif max_iou < iou_threshold_neg:
+                    negative_samples.append(i + proposal_idx_offset)  # 记录全局索引
+
+            # 更新proposal和gt的偏移量
+            proposal_idx_offset += num_proposals
+            gt_idx_offset += num_gt_boxes
 
         return positive_samples, negative_samples
     

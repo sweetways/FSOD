@@ -18,7 +18,7 @@ LOSS:
 SOLVER:
   BASE_LR: 0.01
 # Using 0.04 is slightly better than 0.02
-OUTPUT_DIR: "/root/autodl-tmp/checkpoints/voc/distill/t1"
+OUTPUT_DIR: "checkpoints/voc/distill/t1"
 TRAIN:
   CACHE_UPDATE_INTERVAL: 1000
 
